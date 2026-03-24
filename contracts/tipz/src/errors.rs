@@ -10,8 +10,8 @@ pub enum ContractError {
     AlreadyInitialized = 1,
     /// Contract has not been initialized yet
     NotInitialized = 2,
-    /// Caller is not the contract admin
-    NotAdmin = 3,
+    /// Caller is not authorized to perform this action
+    NotAuthorized = 3,
     /// Address already has a registered profile
     AlreadyRegistered = 4,
     /// Address does not have a registered profile
@@ -38,4 +38,6 @@ pub enum ContractError {
     OverflowError = 15,
     /// Image URL exceeds 256 characters
     InvalidImageUrl = 16,
+    /// Batch update exceeds the maximum allowed entries (50)
+    BatchTooLarge = 17,
 }

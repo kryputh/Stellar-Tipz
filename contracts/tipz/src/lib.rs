@@ -22,7 +22,9 @@ mod leaderboard;
 mod profile;
 mod storage;
 mod tips;
+mod token;
 mod types;
+mod validation;
 
 #[cfg(test)]
 mod test;
@@ -30,7 +32,7 @@ mod test;
 use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
 use crate::errors::ContractError;
-use crate::types::{ContractStats, LeaderboardEntry, Profile};
+use crate::types::{ContractStats, CreditTier, LeaderboardEntry, Profile, Tip};
 
 #[contract]
 pub struct TipzContract;
@@ -93,27 +95,41 @@ impl TipzContract {
 
     /// Update X (Twitter) metrics for a creator (admin only).
     pub fn update_x_metrics(
-        _env: Env,
-        _caller: Address,
-        _target: Address,
-        _followers: u32,
-        _posts: u32,
-        _replies: u32,
+        env: Env,
+        caller: Address,
+        creator: Address,
+        x_followers: u32,
+        x_engagement_avg: u32,
     ) -> Result<(), ContractError> {
-        // TODO: Implement in issue #15 - X Metrics Update
-        Err(ContractError::NotInitialized)
+        admin::update_x_metrics(&env, &caller, &creator, x_followers, x_engagement_avg)
+    }
+
+    /// Batch-update X metrics for multiple creators (admin only).
+    ///
+    /// At most 50 entries per call. Unregistered addresses are skipped (with a
+    /// logged event) instead of failing the transaction.
+    pub fn batch_update_x_metrics(
+        env: Env,
+        caller: Address,
+        updates: Vec<(Address, u32, u32)>,
+    ) -> Result<u32, ContractError> {
+        admin::batch_update_x_metrics(&env, &caller, updates)
     }
 
     /// Get a profile by address.
-    pub fn get_profile(_env: Env, _address: Address) -> Result<Profile, ContractError> {
-        // TODO: Implement in issue #4 - Profile Queries
-        Err(ContractError::NotInitialized)
+    pub fn get_profile(env: Env, address: Address) -> Result<Profile, ContractError> {
+        if !storage::has_profile(&env, &address) {
+            return Err(ContractError::NotRegistered);
+        }
+
+        Ok(storage::get_profile(&env, &address))
     }
 
     /// Get a profile by username.
-    pub fn get_profile_by_username(_env: Env, _username: String) -> Result<Profile, ContractError> {
-        // TODO: Implement in issue #5 - Username Lookup
-        Err(ContractError::NotInitialized)
+    pub fn get_profile_by_username(env: Env, username: String) -> Result<Profile, ContractError> {
+        let address =
+            storage::get_username_address(&env, &username).ok_or(ContractError::NotFound)?;
+        Ok(storage::get_profile(&env, &address))
     }
 
     // ──────────────────────────────────────────────
@@ -137,14 +153,50 @@ impl TipzContract {
         Err(ContractError::NotInitialized)
     }
 
+    /// Get a single tip record by its ID.
+    ///
+    /// Returns [`ContractError::NotFound`] when the tip does not exist or its
+    /// temporary-storage TTL has expired (~7 days after the tip was sent).
+    pub fn get_tip(env: Env, tip_id: u32) -> Result<Tip, ContractError> {
+        tips::get_tip(&env, tip_id).ok_or(ContractError::NotFound)
+    }
+
+    /// Return up to `count` recent tips received by `creator`, newest first.
+    ///
+    /// Tips that have expired are silently omitted, so the returned vector may
+    /// contain fewer than `count` entries.
+    pub fn get_recent_tips(env: Env, creator: Address, count: u32) -> Vec<Tip> {
+        tips::get_recent_tips(&env, &creator, count)
+    }
+
     // ──────────────────────────────────────────────
     // Credit Score
     // ──────────────────────────────────────────────
 
     /// Calculate and return the credit score for a profile.
-    pub fn calculate_credit_score(_env: Env, _address: Address) -> Result<u32, ContractError> {
-        // TODO: Implement in issue #13 - Credit Score Calculation
-        Err(ContractError::NotInitialized)
+    pub fn calculate_credit_score(env: Env, address: Address) -> Result<u32, ContractError> {
+        if !storage::has_profile(&env, &address) {
+            return Err(ContractError::NotRegistered);
+        }
+
+        let mut profile = storage::get_profile(&env, &address);
+        let score = credit::calculate_credit_score(&profile, env.ledger().timestamp());
+        profile.credit_score = score;
+        storage::set_profile(&env, &profile);
+
+        Ok(score)
+    }
+
+    /// Return the current credit score and tier for a registered profile.
+    ///
+    /// The score (0–100) is derived from the profile's tip volume, X metrics,
+    /// and account age.  Newly registered profiles start at **40** (Silver).
+    ///
+    /// # Errors
+    /// Returns [`ContractError::NotRegistered`] when no profile exists for
+    /// `address`.
+    pub fn get_credit_tier(env: Env, address: Address) -> Result<(u32, CreditTier), ContractError> {
+        credit::get_credit_tier(&env, &address)
     }
 
     // ──────────────────────────────────────────────

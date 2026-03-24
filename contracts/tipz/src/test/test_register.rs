@@ -16,10 +16,14 @@ fn setup() -> (Env, TipzContractClient<'static>) {
     let contract_id = env.register_contract(None, TipzContract);
     let client = TipzContractClient::new(&env, &contract_id);
 
+    let token_admin = Address::generate(&env);
+    let token_address = env
+        .register_stellar_asset_contract_v2(token_admin)
+        .address();
+
     let admin = Address::generate(&env);
     let fee_collector = Address::generate(&env);
-    let native_token = Address::generate(&env);
-    client.initialize(&admin, &fee_collector, &200_u32, &native_token);
+    client.initialize(&admin, &fee_collector, &200_u32, &token_address);
 
     (env, client)
 }

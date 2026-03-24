@@ -4,37 +4,8 @@ use soroban_sdk::{Address, Env, String};
 
 use crate::errors::ContractError;
 use crate::events;
-use crate::storage::DataKey;
+use crate::storage;
 use crate::types::Profile;
-
-/// Returns `true` if the username meets format requirements:
-/// 3-32 characters, lowercase alphanumeric and underscore only, must start
-/// with a letter (`[a-z]`).
-fn is_valid_username(username: &String) -> bool {
-    let len = username.len();
-    if !(3..=32).contains(&len) {
-        return false;
-    }
-
-    // Copy bytes into a stack buffer for character-level inspection.
-    // `copy_into_slice` panics if lengths differ, so we pass an exact-length
-    // subslice.
-    let mut buf = [0u8; 32];
-    username.copy_into_slice(&mut buf[..len as usize]);
-
-    // First character must be a lowercase ASCII letter.
-    if !buf[0].is_ascii_lowercase() {
-        return false;
-    }
-
-    // Every character must be [a-z], [0-9], or '_'.
-    for &c in &buf[..len as usize] {
-        if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != b'_' {
-            return false;
-        }
-    }
-    true
-}
 
 /// Register a new creator profile.
 ///
@@ -70,16 +41,14 @@ pub fn register_profile(
     caller.require_auth();
 
     // Contract must be initialised before profiles can be created.
-    if !env.storage().instance().has(&DataKey::Initialized) {
+    if !storage::is_initialized(env) {
         return Err(ContractError::NotInitialized);
     }
 
     // --- Input validation ---
 
     // Username: 3-32 chars, [a-z0-9_], must start with a letter.
-    if !is_valid_username(&username) {
-        return Err(ContractError::InvalidUsername);
-    }
+    crate::validation::validate_username(&username)?;
 
     // Display name: 1-64 characters, non-empty.
     let dn_len = display_name.len();
@@ -100,20 +69,12 @@ pub fn register_profile(
     // --- Duplicate checks ---
 
     // Each address may only register once.
-    if env
-        .storage()
-        .persistent()
-        .has(&DataKey::Profile(caller.clone()))
-    {
+    if storage::has_profile(env, &caller) {
         return Err(ContractError::AlreadyRegistered);
     }
 
     // Each username must be unique across the platform.
-    if env
-        .storage()
-        .persistent()
-        .has(&DataKey::UsernameToAddress(username.clone()))
-    {
+    if storage::get_username_address(env, &username).is_some() {
         return Err(ContractError::UsernameTaken);
     }
 
@@ -128,8 +89,7 @@ pub fn register_profile(
         image_url,
         x_handle,
         x_followers: 0,
-        x_posts: 0,
-        x_replies: 0,
+        x_engagement_avg: 0,
         // Base credit score assigned at registration.
         credit_score: 40,
         total_tips_received: 0,
@@ -139,25 +99,9 @@ pub fn register_profile(
         updated_at: now,
     };
 
-    // Store profile keyed by the creator's address.
-    env.storage()
-        .persistent()
-        .set(&DataKey::Profile(caller.clone()), &profile);
-
-    // Store reverse lookup so profiles can be fetched by username.
-    env.storage()
-        .persistent()
-        .set(&DataKey::UsernameToAddress(username.clone()), &caller);
-
-    // Increment the global creator counter.
-    let total: u32 = env
-        .storage()
-        .instance()
-        .get(&DataKey::TotalCreators)
-        .unwrap_or(0);
-    env.storage()
-        .instance()
-        .set(&DataKey::TotalCreators, &(total + 1));
+    storage::set_profile(env, &profile);
+    storage::set_username_address(env, &username, &caller);
+    storage::increment_total_creators(env);
 
     // Emit ProfileRegistered event.
     events::emit_profile_registered(env, &caller, &username);
