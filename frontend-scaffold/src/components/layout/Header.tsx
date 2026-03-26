@@ -58,6 +58,7 @@ const Header: React.FC = () => {
           <span className="text-xl">💫</span>
         </Link>
 
+        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
           <Link
             to="/leaderboard"
@@ -79,9 +80,10 @@ const Header: React.FC = () => {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-4">
+        {/* Desktop right actions */}
+        <div className="hidden md:flex items-center gap-4">
           <a
-            href="https://github.com/akan_nigeria/stellar-tipz"
+            href="https://github.com/Akanimoh12/stellar-tipz"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -109,6 +111,15 @@ const Header: React.FC = () => {
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
+
+        {/* Mobile menu toggle */}
+        <button
+          className="md:hidden p-1"
+          onClick={() => setMobileOpen((o) => !o)}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
       <AnimatePresence>
