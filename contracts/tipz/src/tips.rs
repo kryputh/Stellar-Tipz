@@ -6,8 +6,10 @@
 
 use soroban_sdk::{Address, Env, String, Vec};
 
+use crate::credit;
 use crate::errors::ContractError;
 use crate::events::emit_tip_sent;
+use crate::leaderboard;
 use crate::storage::{self, DataKey};
 use crate::token;
 use crate::types::Tip;
@@ -105,7 +107,14 @@ pub fn send_tip(
     profile.balance += amount;
     profile.total_tips_received += amount;
     profile.total_tips_count += 1;
+
+    // Update credit score based on new tip totals
+    profile.credit_score = credit::calculate_credit_score(&profile, env.ledger().timestamp());
+
     storage::set_profile(env, &profile);
+
+    // Update leaderboard with the new tip totals
+    leaderboard::update_leaderboard(env, creator);
 
     store_tip(env, tipper, creator, amount, message.clone());
 

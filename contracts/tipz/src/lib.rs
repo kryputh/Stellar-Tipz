@@ -25,6 +25,7 @@ mod tips;
 mod token;
 mod types;
 mod validation;
+mod withdraw;
 
 #[cfg(test)]
 mod test;
@@ -148,8 +149,7 @@ impl TipzContract {
 
     /// Withdraw accumulated tips (fee deducted).
     pub fn withdraw_tips(_env: Env, _caller: Address, _amount: i128) -> Result<(), ContractError> {
-        // TODO: Implement in issue #10 - Withdraw Tips
-        Err(ContractError::NotInitialized)
+        withdraw::withdraw_tips(&_env, &_caller, _amount)
     }
 
     /// Get a single tip record by its ID.
@@ -204,8 +204,10 @@ impl TipzContract {
 
     /// Get the top creators by total tips received.
     pub fn get_leaderboard(_env: Env, _limit: u32) -> Result<Vec<LeaderboardEntry>, ContractError> {
-        // TODO: Implement in issue #17 - Leaderboard
-        Err(ContractError::NotInitialized)
+        if !storage::is_initialized(&_env) {
+            return Err(ContractError::NotInitialized);
+        }
+        Ok(leaderboard::get_leaderboard(&_env, _limit))
     }
 
     // ──────────────────────────────────────────────
@@ -240,7 +242,18 @@ impl TipzContract {
 
     /// Get global contract statistics.
     pub fn get_stats(_env: Env) -> Result<ContractStats, ContractError> {
-        // TODO: Implement in issue #23 - Contract Stats
-        Err(ContractError::NotInitialized)
+        if !storage::is_initialized(&_env) {
+            return Err(ContractError::NotInitialized);
+        }
+
+        let stats = ContractStats {
+            total_creators: storage::get_total_creators(&_env),
+            total_tips_count: storage::get_tip_count(&_env),
+            total_tips_volume: storage::get_total_tips_volume(&_env),
+            total_fees_collected: storage::get_total_fees(&_env),
+            fee_bps: storage::get_fee_bps(&_env),
+        };
+
+        Ok(stats)
     }
 }
