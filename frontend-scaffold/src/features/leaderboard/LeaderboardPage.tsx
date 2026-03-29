@@ -1,11 +1,15 @@
-import { Trophy } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Crown, Medal, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import PageContainer from "@/components/layout/PageContainer";
-import AmountDisplay from "@/components/shared/AmountDisplay";
-import CreditBadge from "@/components/shared/CreditBadge";
-import Avatar from "@/components/ui/Avatar";
-import Card from "@/components/ui/Card";
+import PageContainer from "../../components/layout/PageContainer";
+import AmountDisplay from "../../components/shared/AmountDisplay";
+import CreditBadge from "../../components/shared/CreditBadge";
+import Avatar from "../../components/ui/Avatar";
+import Card from "../../components/ui/Card";
+import Pagination from "../../components/ui/Pagination";
+import Loader from "../../components/ui/Loader";
+import ErrorState from "../../components/shared/ErrorState";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import type { LeaderboardEntry } from "@/types";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
@@ -14,6 +18,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import Podium from "./Podium";
 import LeaderboardTable from "./LeaderboardTable";
 import LeaderboardFilter from "./LeaderboardFilter";
+import { categorizeError } from "@/helpers/error";
 
 const PodiumCard: React.FC<{
   entry: LeaderboardEntry;
@@ -75,84 +80,136 @@ const PodiumCard: React.FC<{
   );
 };
 
+
+const PAGE_SIZE = 5;
+
 const LeaderboardPage: React.FC = () => {
-  usePageTitle("Leaderboard");
+  usePageTitle('Leaderboard');
 
-  const { entries, loading } = useLeaderboard();
+  const { entries, loading, error, refetch } = useLeaderboard();
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(entries.length / PAGE_SIZE);
 
-  // Show a full loading skeleton while fetching initial data
-  if (loading) {
-    return <LeaderboardSkeleton />;
-  }
-
-  const top3 = entries.slice(0, 3);
-  const second = top3[1];
-  const first = top3[0];
-  const third = top3[2];
-  const rest = entries.slice(3);
+  const visibleEntries = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return entries.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [entries, currentPage]);
 
   return (
-    <PageContainer maxWidth="lg" className="space-y-10 py-10">
-      <header className="flex flex-wrap items-center gap-4 border-b-3 border-black pb-6">
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center border-3 border-black bg-black text-white"
-          style={{ boxShadow: "4px 4px 0px 0px rgba(0,0,0,1)" }}
-        >
-          <Trophy className="h-8 w-8" aria-hidden />
-        </div>
-        <div>
-          <h1 className="text-4xl font-black tracking-tight md:text-5xl">
+    <PageContainer maxWidth="xl" className="space-y-8 py-10">
+      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <Card className="space-y-5 bg-yellow-100" padding="lg" hover>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-600">
             Leaderboard
-          </h1>
-          <p className="mt-1 text-sm font-bold uppercase tracking-wide text-gray-600">
-            Top creators by tips received
           </p>
-        </div>
-      </header>
+          <h1 className="flex items-center gap-3 text-4xl font-black uppercase">
+            <Trophy size={34} />
+            Top creators
+          </h1>
+          <p className="max-w-2xl text-base leading-7 text-gray-700">
+            A real-time snapshot of creators earning the most support on Stellar Tipz. These rankings are fetched directly from the Tipz Soroban contract.
+          </p>
+        </Card>
 
-      <section aria-label="Top three creators">
-        <h2 className="sr-only">Podium — top three</h2>
-        <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-3 md:items-end md:gap-3">
-          {second && (
-            <div className="md:order-1 md:pt-8">
-              <PodiumCard entry={second} place={2} />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {error ? (
+            <div className="sm:col-span-3">
+              <ErrorState category={categorizeError(error)} onRetry={refetch} />
             </div>
-          )}
-          {first && (
-            <div className="md:order-2">
-              <PodiumCard entry={first} place={1} />
+          ) : loading && entries.length === 0 ? (
+            <div className="sm:col-span-3 flex justify-center py-12">
+              <Loader size="lg" text="Loading leaderboard..." />
             </div>
-          )}
-          {third && (
-            <div className="md:order-3 md:pt-12">
-              <PodiumCard entry={third} place={3} />
-            </div>
+          ) : (
+            entries.slice(0, 3).map((entry, index) => {
+              const icons = [<Crown key="crown" size={18} />, <Medal key="silver" size={18} />, <Medal key="bronze" size={18} />];
+              const labels = ["1st", "2nd", "3rd"];
+
+              return (
+                <Card key={entry.address} className="space-y-4" padding="lg" hover>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 text-sm font-black uppercase">
+                      {icons[index]}
+                      {labels[index]}
+                    </span>
+                    <CreditBadge score={entry.creditScore} showScore={false} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Avatar address={entry.address} alt={entry.username} fallback={entry.username} size="lg" />
+                    <div>
+                      <p className="text-lg font-black uppercase truncate max-w-[120px]">{entry.username}</p>
+                      <AmountDisplay amount={entry.totalTipsReceived} className="text-sm" />
+                    </div>
+                  </div>
+                </Card>
+              );
+            })
           )}
         </div>
-        <Podium creators={top3} />
       </section>
 
-      {entries.length === 0 ? (
-        <section>
-          <EmptyState
-            icon={<Trophy />}
-            title="No creators yet"
-            description="Be the first!"
-          />
-        </section>
-      ) : (
-        <>
-          <section aria-label="Additional leaderboard rankings">
-            <h2 className="mb-4 text-2xl font-black uppercase">
-              More creators
-            </h2>
+      <section>
+        <Card className="space-y-6" padding="lg">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <h2 className="text-2xl font-black uppercase">Full rankings</h2>
+            <Link to="/dashboard" className="text-sm font-black uppercase underline">
+              Open your dashboard
+            </Link>
+          </div>
 
-            <LeaderboardFilter entries={rest}>
-              {(filtered) => <LeaderboardTable entries={filtered} />}
-            </LeaderboardFilter>
-          </section>
-        </>
-      )}
+          <div className="overflow-x-auto">
+            {loading && entries.length === 0 ? (
+              <div className="flex justify-center py-20">
+                <Loader size="lg" text="Fetching rankings..." />
+              </div>
+            ) : entries.length === 0 ? (
+              <div className="text-center py-20 border-2 border-dashed border-black">
+                <p className="font-black uppercase text-gray-500">No creators found on the leaderboard yet.</p>
+              </div>
+            ) : (
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-black text-left">
+                    <th scope="col" className="px-4 py-3 text-xs font-black uppercase tracking-[0.2em]">Rank</th>
+                    <th scope="col" className="px-4 py-3 text-xs font-black uppercase tracking-[0.2em]">Creator</th>
+                    <th scope="col" className="px-4 py-3 text-xs font-black uppercase tracking-[0.2em]">Volume</th>
+                    <th scope="col" className="px-4 py-3 text-xs font-black uppercase tracking-[0.2em]">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleEntries.map((entry, index) => {
+                    const rank = (currentPage - 1) * PAGE_SIZE + index + 1;
+
+                    return (
+                      <tr key={entry.address} className="border-b border-gray-300 hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-4 text-sm font-black">{rank}</td>
+                        <td className="px-4 py-4">
+                          <Link to={`/@${entry.username}`} className="flex items-center gap-3">
+                            <Avatar address={entry.address} alt={entry.username} fallback={entry.username} size="md" />
+                            <span className="font-black uppercase">{entry.username}</span>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-4">
+                          <AmountDisplay amount={entry.totalTipsReceived} className="text-sm" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <CreditBadge score={entry.creditScore} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </Card>
+      </section>
     </PageContainer>
   );
 };
