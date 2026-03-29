@@ -107,17 +107,10 @@ export const submitTx = async (
     while (
       txResponse.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND
     ) {
-      if (retries >= MAX_RETRIES) {
-        throw new Error("Transaction not confirmed after maximum retries");
-      }
-
-      const delay = Math.min(1000 * 2 ** retries, 16000); // cap at 16s
-      await new Promise((resolve) => setTimeout(resolve, delay)); // eslint-disable-line no-await-in-loop
-
-      retries += 1;
-      onRetry?.(MAX_RETRIES - retries);
-
-      txResponse = await server.getTransaction(sendResponse.hash); // eslint-disable-line no-await-in-loop
+      // See if the transaction is complete
+      txResponse = await server.getTransaction(sendResponse.hash);
+      // Wait a second
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     if (txResponse.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
