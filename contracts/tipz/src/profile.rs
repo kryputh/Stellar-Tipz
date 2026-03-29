@@ -175,3 +175,52 @@ pub fn update_profile(
 
     Ok(())
 }
+
+/// Deregister the caller's profile, permanently removing it from the platform.
+///
+/// # Requirements
+/// - Caller must have a registered profile
+/// - Caller's balance must be zero (all tips withdrawn)
+/// - Contract must not be paused
+///
+/// # Effects
+/// - Removes profile from persistent storage
+/// - Removes username reverse-lookup entry
+/// - Removes creator from leaderboard (if present)
+/// - Decrements total creators counter
+/// - Emits ProfileDeregistered event
+///
+/// # Errors
+/// - [`ContractError::NotRegistered`] - Caller has no profile
+/// - [`ContractError::BalanceNotZero`] - Caller has unwithdrawn tips
+/// - [`ContractError::ContractPaused`] - Contract is paused
+pub fn deregister_profile(env: &Env, caller: Address) -> Result<(), ContractError> {
+    // 4.1: Authorization check, extend TTL, and check pause state
+    caller.require_auth();
+    storage::extend_instance_ttl(env);
+    crate::admin::require_not_paused(env)?;
+
+    // 4.2: Profile existence validation
+    if !storage::has_profile(env, &caller) {
+        return Err(ContractError::NotRegistered);
+    }
+
+    // 4.3: Balance validation
+    let profile = storage::get_profile(env, &caller);
+    if profile.balance > 0 {
+        return Err(ContractError::BalanceNotZero);
+    }
+
+    // 4.4: Storage cleanup operations
+    storage::remove_profile(env, &caller);
+    storage::remove_username_address(env, &profile.username);
+    storage::decrement_total_creators(env);
+
+    // 4.5: Leaderboard removal
+    crate::leaderboard::remove_from_leaderboard(env, &caller);
+
+    // 4.6: Event emission
+    events::emit_profile_deregistered(env, &caller, &profile.username);
+
+    Ok(())
+}
