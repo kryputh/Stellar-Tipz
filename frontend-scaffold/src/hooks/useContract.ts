@@ -246,11 +246,9 @@ export const useContract = () => {
     // Returns an Option with Some(value) if value is provided, else None
     const optionalStringToScVal = (value?: string): xdr.ScVal => {
       if (value !== undefined && value !== "") {
-        return xdr.ScVal.scvOption(
-          xdr.SCOption.scOptionSome(nativeToScVal(value))
-        );
+        return nativeToScVal({ type: "some", value: value });
       }
-      return xdr.ScVal.scvOption(xdr.SCOption.scOptionNone());
+      return nativeToScVal({ type: "none" });
     };
 
     const tx = txBuilder

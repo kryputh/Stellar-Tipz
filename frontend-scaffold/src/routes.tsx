@@ -10,6 +10,7 @@ const ProfileEditPage = lazy(() => import('@/features/profile/ProfileEditPage'))
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'));
 const LeaderboardPage = lazy(() => import('@/features/leaderboard/LeaderboardPage'));
 const TipPage = lazy(() => import('@/features/tipping/TipPage'));
+const NotFoundPage = lazy(() => import('@/features/not-found/NotFoundPage'));
 
 /**
  * Route configuration for the Stellar-Tipz application.
@@ -44,5 +45,9 @@ export const routes: RouteObject[] = [
   {
     path: '/dashboard',
     element: protect(<DashboardPage />),
+  },
+  {
+    path: '*',
+    element: wrap(<NotFoundPage />),
   },
 ];

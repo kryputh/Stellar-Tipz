@@ -105,7 +105,7 @@ const DashboardPage: React.FC = () => {
       label: "Overview",
       content: (
         <div className="pt-6">
-          <OverviewTab profile={creator} tips={tips} />
+          <OverviewTab />
         </div>
       ),
     },
@@ -114,7 +114,7 @@ const DashboardPage: React.FC = () => {
       label: "Tips",
       content: (
         <div className="pt-6">
-          <TipsTab tips={tips} />
+          <TipsTab />
         </div>
       ),
     },
