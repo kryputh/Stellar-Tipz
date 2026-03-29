@@ -100,7 +100,6 @@ export const submitTx = async (
   if (sendResponse.status === SendTxStatus.Pending) {
     let txResponse = await server.getTransaction(sendResponse.hash);
 
-    // Poll this until the status is not "NOT_FOUND"
     while (
       txResponse.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND
     ) {
