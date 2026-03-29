@@ -34,7 +34,7 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 function formatXlmAmount(stroops: string): string {
-  return stroopToXlm(new BigNumber(stroops)).toFormat(2);
+  return stroopToXlm(new BigNumber(stroops));
 }
 
 const ActivityMini: React.FC<ActivityMiniProps> = ({ tips, onViewAll }) => {
