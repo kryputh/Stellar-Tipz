@@ -11,7 +11,7 @@ interface WithdrawModalProps {
 }
 
 /**
- * WithdrawModal allows creators to withdraw their earned tips to their connected wallet.
+ * WithdrawModal allows creators to withdraw their earned tips to  their connected wallet.
  */
 const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose, balance }) => {
   const { withdrawTips, withdrawing, error, txHash, reset } = useTipz();
