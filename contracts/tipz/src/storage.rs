@@ -456,6 +456,17 @@ pub fn increment_total_creators(env: &Env) {
         .set(&DataKey::TotalCreators, &(total + 1));
 }
 
+/// Decrements the total registered creators counter by one.
+/// Includes underflow protection (only decrements if total > 0).
+pub fn decrement_total_creators(env: &Env) {
+    let total = get_total_creators(env);
+    if total > 0 {
+        env.storage()
+            .instance()
+            .set(&DataKey::TotalCreators, &(total - 1));
+    }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Tips volume tracking
 // ──────────────────────────────────────────────────────────────────────────────
