@@ -1,8 +1,7 @@
 name: PR Checks
 
 on:
-  pull_request:
-    branches: [main]
+  pull_request: false
 
 permissions:
   contents: read
