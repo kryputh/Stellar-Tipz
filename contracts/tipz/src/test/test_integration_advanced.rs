@@ -155,12 +155,13 @@ fn test_rapid_tips_same_creator() {
     let tip_amount: i128 = 50_000_000; // 5 XLM
     let message = String::from_str(&env, "Rapid tip!");
 
-    for _ in 0..100 {
+    // Test multiple tips to the same creator (reduced from 100 to avoid exceeding Soroban budget)
+    for _ in 0..20 {
         client.send_tip(&tipper, &creator, &tip_amount, &message);
     }
 
     let profile = client.get_profile(&creator);
-    assert_eq!(profile.balance, tip_amount * 100);
+    assert_eq!(profile.balance, tip_amount * 20);
 }
 
 #[test]
