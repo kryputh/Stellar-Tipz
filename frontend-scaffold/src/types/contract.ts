@@ -44,11 +44,12 @@ export interface ContractStats {
 }
 
 /** Credit score tiers */
-export type CreditTier = 'bronze' | 'silver' | 'gold' | 'diamond';
+export type CreditTier = 'new' | 'bronze' | 'silver' | 'gold' | 'diamond';
 
 export const getCreditTier = (score: number): CreditTier => {
-  if (score >= 901) return 'diamond';
-  if (score >= 701) return 'gold';
-  if (score >= 401) return 'silver';
-  return 'bronze';
+  if (score >= 80) return 'diamond';
+  if (score >= 60) return 'gold';
+  if (score >= 40) return 'silver';
+  if (score >= 20) return 'bronze';
+  return 'new';
 };
