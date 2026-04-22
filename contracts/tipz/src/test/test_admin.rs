@@ -592,7 +592,7 @@ fn setup_initialized() -> (Env, TipzContractClient<'static>, Address) {
 
 #[test]
 fn test_propose_admin_stores_pending_and_emits_event() {
-    let (_env, client, admin) = setup_initialized();
+    let (env, client, admin) = setup_initialized();
     let new_admin = Address::generate(&env);
 
     client.propose_admin(&admin, &new_admin);
@@ -681,7 +681,7 @@ fn test_cancel_admin_proposal_non_admin_fails() {
 
 #[test]
 fn test_cancel_admin_proposal_no_proposal_fails() {
-    let (env, client, admin) = setup_initialized();
+    let (_env, client, admin) = setup_initialized();
 
     let result = client.try_cancel_admin_proposal(&admin);
     assert_eq!(result, Err(Ok(ContractError::NoPendingAdmin)));
