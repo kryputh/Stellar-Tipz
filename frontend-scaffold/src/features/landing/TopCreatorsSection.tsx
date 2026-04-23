@@ -8,6 +8,8 @@ import ProfileCard, { ProfileCardSkeleton } from '@/components/shared/ProfileCar
 import EmptyState from '@/components/ui/EmptyState';
 import ErrorState from '@/components/shared/ErrorState';
 import { categorizeError } from '@/helpers/error';
+import { env } from '@/helpers/env';
+import { mockLeaderboard } from '@/features/mockData';
 
 export default function TopCreatorsSection() {
   const [creators, setCreators] = useState<LeaderboardEntry[]>([]);
@@ -16,41 +18,37 @@ export default function TopCreatorsSection() {
   const { getLeaderboard } = useContract();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let active = true;
-    getLeaderboard(5)
-      .then((data) => {
-        if (active) {
-          setCreators(data);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (active) {
-          console.error('Failed to fetch leaderboard:', err);
-          setError(String(err));
-          setLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [getLeaderboard]);
-
-  const handleRetry = useCallback(() => {
+  const fetchCreators = useCallback(async () => {
     setLoading(true);
     setError(null);
-    getLeaderboard(5)
-      .then((data) => {
-        setCreators(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch leaderboard:', err);
-        setError(String(err));
-        setLoading(false);
-      });
+
+    // Use mock data when flag is set or contract is not configured
+    if (env.useMockData || !env.contractId) {
+      setCreators(env.useMockData ? mockLeaderboard.slice(0, 5) : []);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const data = await getLeaderboard(5);
+      setCreators(data);
+    } catch (err) {
+      console.error('Failed to fetch leaderboard:', err);
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
   }, [getLeaderboard]);
+
+  useEffect(() => {
+    let active = true;
+    fetchCreators().catch(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [fetchCreators]);
+
+  const handleRetry = useCallback(() => {
+    fetchCreators();
+  }, [fetchCreators]);
 
   const handleViewFullLeaderboard = () => {
     navigate('/leaderboard');
@@ -90,7 +88,7 @@ export default function TopCreatorsSection() {
           </div>
         ) : error ? (
           <ErrorState 
-            category={categorizeError(error)} 
+            category={categorizeError(error).category} 
             onRetry={handleRetry}
           />
         ) : creators.length === 0 ? (

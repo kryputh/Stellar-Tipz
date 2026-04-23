@@ -74,7 +74,7 @@ const TipPage: React.FC = () => {
     return (
       <PageContainer maxWidth="xl" className="py-20">
         <ErrorState 
-          category={categorizeError(fetchError || 'Not Found')} 
+          category={categorizeError(fetchError || 'Not Found').category} 
           onRetry={fetchCreator} 
         />
       </PageContainer>
@@ -153,7 +153,7 @@ const TipPage: React.FC = () => {
               txHash={txHash ?? undefined}
               amount={amount}
               creator={creator}
-              errorMessage={flowError ? (categorizeError(flowError) === 'network' ? ERRORS.NETWORK : ERRORS.CONTRACT) : undefined}
+              errorMessage={flowError ? (categorizeError(flowError).category === 'network' ? ERRORS.NETWORK : ERRORS.CONTRACT) : undefined}
               onPrimaryAction={reset}
             />
           ) : (
@@ -213,7 +213,7 @@ const TipPage: React.FC = () => {
             <TransactionStatus
               status={step === "signing" ? "signing" : "submitting"}
               txHash={txHash ?? undefined}
-              errorMessage={flowError ? (categorizeError(flowError) === 'network' ? ERRORS.NETWORK : ERRORS.CONTRACT) : undefined}
+              errorMessage={flowError ? (categorizeError(flowError).category === 'network' ? ERRORS.NETWORK : ERRORS.CONTRACT) : undefined}
             />
           ) : null}
         </Card>

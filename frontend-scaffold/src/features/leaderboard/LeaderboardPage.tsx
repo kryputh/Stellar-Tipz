@@ -52,7 +52,7 @@ const LeaderboardPage: React.FC = () => {
         <div className="grid gap-4 sm:grid-cols-3">
           {error ? (
             <div className="sm:col-span-3">
-              <ErrorState category={categorizeError(error)} onRetry={refetch} />
+              <ErrorState category={categorizeError(error).category} onRetry={refetch} />
             </div>
           ) : (
             entries.slice(0, 3).map((entry, index) => {

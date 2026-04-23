@@ -41,12 +41,15 @@ cd contracts
 cargo build --target wasm32-unknown-unknown --release
 cd ..
 
-WASM_PATH="contracts/target/wasm32-unknown-unknown/release/tipz_contract.wasm"
+WASM_PATH=$(find contracts/target/wasm32-unknown-unknown/release -maxdepth 1 -name "*.wasm" ! -name "*.d.wasm" 2>/dev/null | head -1)
 
-if [ ! -f "$WASM_PATH" ]; then
-    echo "Error: Wasm file not found at $WASM_PATH"
+if [ -z "$WASM_PATH" ]; then
+    echo "Error: No Wasm file found in contracts/target/wasm32-unknown-unknown/release/"
+    echo "Expected the build to produce a .wasm file. Check that the contract compiled successfully."
     exit 1
 fi
+
+echo "Using Wasm: $WASM_PATH"
 
 # Deploy
 echo "Deploying to testnet..."
