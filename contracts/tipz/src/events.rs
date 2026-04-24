@@ -203,7 +203,11 @@ pub fn emit_x_metrics_batch_completed(
 
 /// Topics : `("verification", "requested")`
 /// Data   : `(creator: Address, verification_type: VerificationType)`
-pub fn emit_verification_requested(env: &Env, creator: &Address, verification_type: &crate::types::VerificationType) {
+pub fn emit_verification_requested(
+    env: &Env,
+    creator: &Address,
+    verification_type: &crate::types::VerificationType,
+) {
     env.events().publish(
         (Symbol::new(env, "verification"), symbol_short!("requested")),
         (creator.clone(), verification_type.clone()),
@@ -212,7 +216,11 @@ pub fn emit_verification_requested(env: &Env, creator: &Address, verification_ty
 
 /// Topics : `("verification", "approved")`
 /// Data   : `(creator: Address, verification_type: VerificationType)`
-pub fn emit_verification_approved(env: &Env, creator: &Address, verification_type: &crate::types::VerificationType) {
+pub fn emit_verification_approved(
+    env: &Env,
+    creator: &Address,
+    verification_type: &crate::types::VerificationType,
+) {
     env.events().publish(
         (Symbol::new(env, "verification"), symbol_short!("approved")),
         (creator.clone(), verification_type.clone()),
@@ -231,7 +239,13 @@ pub fn emit_verification_revoked(env: &Env, creator: &Address) {
 // ── Subscription events ──────────────────────────────────────────────────────
 
 /// Topics : `("sub", "created")`
-pub fn emit_subscription_created(env: &Env, subscriber: &Address, creator: &Address, amount: i128, interval_days: u32) {
+pub fn emit_subscription_created(
+    env: &Env,
+    subscriber: &Address,
+    creator: &Address,
+    amount: i128,
+    interval_days: u32,
+) {
     env.events().publish(
         (symbol_short!("sub"), symbol_short!("created")),
         (subscriber.clone(), creator.clone(), amount, interval_days),
@@ -247,7 +261,12 @@ pub fn emit_subscription_cancelled(env: &Env, subscriber: &Address, creator: &Ad
 }
 
 /// Topics : `("sub", "exec")`
-pub fn emit_subscription_executed(env: &Env, subscriber: &Address, creator: &Address, amount: i128) {
+pub fn emit_subscription_executed(
+    env: &Env,
+    subscriber: &Address,
+    creator: &Address,
+    amount: i128,
+) {
     env.events().publish(
         (symbol_short!("sub"), symbol_short!("exec")),
         (subscriber.clone(), creator.clone(), amount),
@@ -257,7 +276,13 @@ pub fn emit_subscription_executed(env: &Env, subscriber: &Address, creator: &Add
 // ── Withdrawal Scheduling events ─────────────────────────────────────────────
 
 /// Topics : `("wd", "sched")`
-pub fn emit_withdrawal_scheduled(env: &Env, creator: &Address, id: u32, amount: i128, unlock_at: u64) {
+pub fn emit_withdrawal_scheduled(
+    env: &Env,
+    creator: &Address,
+    id: u32,
+    amount: i128,
+    unlock_at: u64,
+) {
     env.events().publish(
         (symbol_short!("wd"), symbol_short!("sched")),
         (creator.clone(), id, amount, unlock_at),

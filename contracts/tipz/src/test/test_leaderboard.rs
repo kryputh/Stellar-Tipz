@@ -383,14 +383,8 @@ fn test_insert_at_position_zero() {
         "carol must be rank 1"
     );
     // Invariant: board is in descending order.
-    assert!(
-        board.get(0).unwrap().total_tips_received
-            >= board.get(1).unwrap().total_tips_received
-    );
-    assert!(
-        board.get(1).unwrap().total_tips_received
-            >= board.get(2).unwrap().total_tips_received
-    );
+    assert!(board.get(0).unwrap().total_tips_received >= board.get(1).unwrap().total_tips_received);
+    assert!(board.get(1).unwrap().total_tips_received >= board.get(2).unwrap().total_tips_received);
 }
 
 /// When the leaderboard has exactly one entry and a second creator is added,
@@ -402,12 +396,7 @@ fn test_insert_when_board_has_one_entry() {
 
     let alice = Address::generate(&env);
     insert_profile(&env, &contract_id, &alice, "alice");
-    client.send_tip(
-        &tipper,
-        &alice,
-        &30_000_000,
-        &String::from_str(&env, ""),
-    ); // 3 XLM
+    client.send_tip(&tipper, &alice, &30_000_000, &String::from_str(&env, "")); // 3 XLM
 
     let board_one = client.get_leaderboard(&50);
     assert_eq!(board_one.len(), 1, "should have exactly one entry");
@@ -416,12 +405,7 @@ fn test_insert_when_board_has_one_entry() {
     // bob joins with a smaller tip — alice should stay at rank 1.
     let bob = Address::generate(&env);
     insert_profile(&env, &contract_id, &bob, "bob");
-    client.send_tip(
-        &tipper,
-        &bob,
-        &10_000_000,
-        &String::from_str(&env, ""),
-    ); // 1 XLM
+    client.send_tip(&tipper, &bob, &10_000_000, &String::from_str(&env, "")); // 1 XLM
 
     let board_two = client.get_leaderboard(&50);
     assert_eq!(board_two.len(), 2, "should now have two entries");
