@@ -1084,7 +1084,6 @@ pub fn remove_verification_request(env: &Env, address: &Address) {
         .remove(&DataKey::VerificationRequest(address.clone()));
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Donation page storage functions
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1095,11 +1094,7 @@ pub fn get_donation_page(env: &Env, creator: &Address) -> Option<crate::types::D
         .get(&DataKey::DonationPage(creator.clone()))
 }
 
-pub fn set_donation_page(
-    env: &Env,
-    creator: &Address,
-    config: &crate::types::DonationPageConfig,
-) {
+pub fn set_donation_page(env: &Env, creator: &Address, config: &crate::types::DonationPageConfig) {
     env.storage()
         .persistent()
         .set(&DataKey::DonationPage(creator.clone()), config);
@@ -1131,9 +1126,7 @@ pub fn get_tips_last_24h(env: &Env) -> u32 {
 }
 
 pub fn set_tips_last_24h(env: &Env, count: u32) {
-    env.storage()
-        .instance()
-        .set(&DataKey::TipsLast24h, &count);
+    env.storage().instance().set(&DataKey::TipsLast24h, &count);
 }
 
 pub fn get_volume_last_24h(env: &Env) -> i128 {
@@ -1162,6 +1155,7 @@ pub fn set_active_creators_30d(env: &Env, count: u32) {
         .set(&DataKey::ActiveCreators30d, &count);
 }
 
+#[allow(dead_code)]
 pub fn get_creator_last_active(env: &Env, creator: &Address) -> u64 {
     env.storage()
         .persistent()
