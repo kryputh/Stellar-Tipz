@@ -8,7 +8,7 @@
 //! Topic tuple  → `(Symbol, Symbol)`   – identifies the event type
 //! Data tuple   → `(field, field, …)`  – the payload
 
-use soroban_sdk::{symbol_short, Address, Env, String, Vec};
+use soroban_sdk::{symbol_short, Address, Env, String, Symbol, Vec};
 
 use crate::types::BatchSkip;
 
@@ -44,7 +44,7 @@ pub fn emit_profile_deregistered(env: &Env, owner: &Address, username: &String) 
 // ── Tip events ────────────────────────────────────────────────────────────────
 
 /// Topics : `("tip", "sent")`
-/// Data   : `(id: u32, tipper: Address, creator: Address, amount: i128, message: String, timestamp: u64)`
+/// Data   : `(id: u32, tipper: Address, creator: Address, amount: i128, message: String, timestamp: u64, is_anonymous: bool)`
 ///
 /// All tip fields are included so that off-chain indexers can reconstruct the
 /// complete tip history from events alone, without relying on temporary storage
@@ -57,6 +57,7 @@ pub fn emit_tip_sent(
     amount: i128,
     message: &String,
     timestamp: u64,
+    is_anonymous: bool,
 ) {
     env.events().publish(
         (symbol_short!("tip"), symbol_short!("sent")),
@@ -67,6 +68,7 @@ pub fn emit_tip_sent(
             amount,
             message.clone(),
             timestamp,
+            is_anonymous,
         ),
     );
 }
@@ -203,18 +205,26 @@ pub fn emit_x_metrics_batch_completed(
 
 /// Topics : `("verification", "requested")`
 /// Data   : `(creator: Address, verification_type: VerificationType)`
-pub fn emit_verification_requested(env: &Env, creator: &Address, verification_type: &crate::types::VerificationType) {
+pub fn emit_verification_requested(
+    env: &Env,
+    creator: &Address,
+    verification_type: &crate::types::VerificationType,
+) {
     env.events().publish(
-        (symbol_short!("verification"), symbol_short!("requested")),
+        (Symbol::new(env, "verification"), symbol_short!("requested")),
         (creator.clone(), verification_type.clone()),
     );
 }
 
 /// Topics : `("verification", "approved")`
 /// Data   : `(creator: Address, verification_type: VerificationType)`
-pub fn emit_verification_approved(env: &Env, creator: &Address, verification_type: &crate::types::VerificationType) {
+pub fn emit_verification_approved(
+    env: &Env,
+    creator: &Address,
+    verification_type: &crate::types::VerificationType,
+) {
     env.events().publish(
-        (symbol_short!("verification"), symbol_short!("approved")),
+        (Symbol::new(env, "verification"), symbol_short!("approved")),
         (creator.clone(), verification_type.clone()),
     );
 }
@@ -223,7 +233,150 @@ pub fn emit_verification_approved(env: &Env, creator: &Address, verification_typ
 /// Data   : `(creator: Address,)`
 pub fn emit_verification_revoked(env: &Env, creator: &Address) {
     env.events().publish(
-        (symbol_short!("verification"), symbol_short!("revoked")),
+        (Symbol::new(env, "verification"), symbol_short!("revoked")),
         (creator.clone(),),
+    );
+}
+
+// ── Subscription events ──────────────────────────────────────────────────────
+
+/// Topics : `("sub", "created")`
+pub fn emit_subscription_created(
+    env: &Env,
+    subscriber: &Address,
+    creator: &Address,
+    amount: i128,
+    interval_days: u32,
+) {
+    env.events().publish(
+        (symbol_short!("sub"), symbol_short!("created")),
+        (subscriber.clone(), creator.clone(), amount, interval_days),
+    );
+}
+
+/// Topics : `("sub", "cancel")`
+pub fn emit_subscription_cancelled(env: &Env, subscriber: &Address, creator: &Address) {
+    env.events().publish(
+        (symbol_short!("sub"), symbol_short!("cancel")),
+        (subscriber.clone(), creator.clone()),
+    );
+}
+
+/// Topics : `("sub", "exec")`
+pub fn emit_subscription_executed(
+    env: &Env,
+    subscriber: &Address,
+    creator: &Address,
+    amount: i128,
+) {
+    env.events().publish(
+        (symbol_short!("sub"), symbol_short!("exec")),
+        (subscriber.clone(), creator.clone(), amount),
+    );
+}
+
+// ── Withdrawal Scheduling events ─────────────────────────────────────────────
+
+/// Topics : `("wd", "sched")`
+#[allow(dead_code)]
+pub fn emit_withdrawal_scheduled(
+    env: &Env,
+    creator: &Address,
+    id: u32,
+    amount: i128,
+    unlock_at: u64,
+) {
+    env.events().publish(
+        (symbol_short!("wd"), symbol_short!("sched")),
+        (creator.clone(), id, amount, unlock_at),
+    );
+}
+
+/// Topics : `("wd", "exec")`
+#[allow(dead_code)]
+pub fn emit_withdrawal_executed(env: &Env, creator: &Address, id: u32, amount: i128) {
+    env.events().publish(
+        (symbol_short!("wd"), symbol_short!("exec")),
+        (creator.clone(), id, amount),
+    );
+}
+
+/// Topics : `("wd", "cancel")`
+#[allow(dead_code)]
+pub fn emit_withdrawal_cancelled(env: &Env, creator: &Address, id: u32) {
+    env.events().publish(
+        (symbol_short!("wd"), symbol_short!("cancel")),
+        (creator.clone(), id),
+    );
+}
+
+// ── Fee Distribution events ──────────────────────────────────────────────────
+
+/// Topics : `("fee", "split")`
+#[allow(dead_code)]
+pub fn emit_fee_split_updated(env: &Env, ops_pct: u32, pool_pct: u32) {
+    env.events().publish(
+        (symbol_short!("fee"), symbol_short!("split")),
+        (ops_pct, pool_pct),
+    );
+}
+
+/// Topics : `("fee", "dist")`
+#[allow(dead_code)]
+pub fn emit_fee_distributed(env: &Env, amount: i128, to_ops: bool) {
+    env.events().publish(
+        (symbol_short!("fee"), symbol_short!("dist")),
+        (amount, to_ops),
+    );
+}
+
+/// Topics : `("pool", "dist")`
+#[allow(dead_code)]
+pub fn emit_pool_distribution(env: &Env, total_amount: i128, recipient_count: u32) {
+    env.events().publish(
+        (symbol_short!("pool"), symbol_short!("dist")),
+        (total_amount, recipient_count),
+    );
+}
+
+
+// ── Multi-sig events ──────────────────────────────────────────────────────────
+
+/// Topics : `("proposal", "created")`
+pub fn emit_proposal_created(
+    env: &Env,
+    proposal_id: u32,
+    proposer: &Address,
+    action: &crate::multisig::Action,
+) {
+    env.events().publish(
+        (Symbol::new(env, "proposal"), symbol_short!("created")),
+        (proposal_id, proposer.clone(), action.clone()),
+    );
+}
+
+/// Topics : `("proposal", "approved")`
+pub fn emit_proposal_approved(env: &Env, proposal_id: u32, approver: &Address) {
+    env.events().publish(
+        (Symbol::new(env, "proposal"), symbol_short!("approved")),
+        (proposal_id, approver.clone()),
+    );
+}
+
+/// Topics : `("proposal", "executed")`
+pub fn emit_proposal_executed(env: &Env, proposal_id: u32) {
+    env.events().publish(
+        (Symbol::new(env, "proposal"), symbol_short!("executed")),
+        proposal_id,
+    );
+}
+
+// ── Donation page events ──────────────────────────────────────────────────────
+
+/// Topics : `("donation", "config")`
+pub fn emit_donation_page_updated(env: &Env, creator: &Address) {
+    env.events().publish(
+        (Symbol::new(env, "donation"), symbol_short!("config")),
+        creator.clone(),
     );
 }

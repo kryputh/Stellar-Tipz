@@ -88,6 +88,48 @@ pub enum DataKey {
     VerificationStatus(Address),
     /// Pending verification request by creator address
     VerificationRequest(Address),
+    /// Subscription by (subscriber, creator)
+    Subscription(Address, Address),
+    /// Number of subscriptions for a subscriber
+    SubscriberSubCount(Address),
+    /// Index: (subscriber, index) -> creator
+    SubscriberSub(Address, u32),
+    /// Number of subscribers for a creator
+    CreatorSubCount(Address),
+    /// Index: (creator, index) -> subscriber
+    CreatorSub(Address, u32),
+    /// Pending withdrawal by (creator, withdrawal_id)
+    PendingWithdrawal(Address, u32),
+    /// Next withdrawal ID for a creator
+    NextWithdrawalId(Address),
+    /// Withdrawal cooldown in seconds
+    WithdrawalCooldown,
+    /// Large withdrawal threshold in stroops
+    WithdrawalThreshold,
+    /// Percentage of fees going to operations
+    OpsFeePct,
+    /// Percentage of fees going to staking pool
+    PoolFeePct,
+    /// Current pool balance
+    PoolBalance,
+    /// Multi-signature configuration
+    MultisigConfig,
+    /// Multi-sig proposal by ID
+    Proposal(u32),
+    /// Next proposal ID counter
+    NextProposalId,
+    /// Donation page config by creator
+    DonationPage(Address),
+    /// 24-hour stats window start timestamp
+    StatsWindowStart,
+    /// Tips count in last 24 hours
+    TipsLast24h,
+    /// Volume in last 24 hours
+    VolumeLast24h,
+    /// Active creators in last 30 days
+    ActiveCreators30d,
+    /// Creator last active timestamp
+    CreatorLastActive(Address),
 }
 
 /// Extend the contract instance TTL when a write transaction starts.
@@ -585,8 +627,9 @@ pub fn add_to_fees(env: &Env, fee: i128) -> Result<(), ContractError> {
 mod tests {
     use super::*;
     use soroban_sdk::testutils::storage::{Instance, Temporary};
-    use soroban_sdk::{testutils::Address as _, Env};
+    use soroban_sdk::{testutils::Address as _, Env, Map, Symbol};
 
+    use crate::types::{VerificationStatus, VerificationType};
     use crate::TipzContract;
 
     /// Creates a test `Env` and registers the contract, returning both.
@@ -688,7 +731,9 @@ mod tests {
             username: String::from_str(&env, "alice"),
             display_name: String::from_str(&env, "Alice"),
             bio: String::from_str(&env, ""),
+            website: String::from_str(&env, ""),
             image_url: String::from_str(&env, ""),
+            social_links: Map::<Symbol, String>::new(&env),
             x_handle: String::from_str(&env, ""),
             x_followers: 0,
             x_engagement_avg: 0,
@@ -698,6 +743,12 @@ mod tests {
             balance: 0,
             registered_at: 0,
             updated_at: 0,
+            verification: VerificationStatus {
+                is_verified: false,
+                verification_type: VerificationType::Unverified,
+                verified_at: None,
+                revoked_at: None,
+            },
         };
         env.as_contract(&id, || {
             set_profile(&env, &profile);
@@ -714,7 +765,9 @@ mod tests {
             username: String::from_str(&env, "bob"),
             display_name: String::from_str(&env, "Bob"),
             bio: String::from_str(&env, ""),
+            website: String::from_str(&env, ""),
             image_url: String::from_str(&env, ""),
+            social_links: Map::<Symbol, String>::new(&env),
             x_handle: String::from_str(&env, ""),
             x_followers: 0,
             x_engagement_avg: 0,
@@ -724,6 +777,12 @@ mod tests {
             balance: 500,
             registered_at: 100,
             updated_at: 200,
+            verification: VerificationStatus {
+                is_verified: false,
+                verification_type: VerificationType::Unverified,
+                verified_at: None,
+                revoked_at: None,
+            },
         };
         env.as_contract(&id, || {
             set_profile(&env, &profile);
@@ -859,7 +918,9 @@ mod tests {
             username: String::from_str(&env, "testuser"),
             display_name: String::from_str(&env, "Test User"),
             bio: String::from_str(&env, ""),
+            website: String::from_str(&env, ""),
             image_url: String::from_str(&env, ""),
+            social_links: Map::<Symbol, String>::new(&env),
             x_handle: String::from_str(&env, ""),
             x_followers: 0,
             x_engagement_avg: 0,
@@ -869,6 +930,12 @@ mod tests {
             balance: 0,
             registered_at: 0,
             updated_at: 0,
+            verification: VerificationStatus {
+                is_verified: false,
+                verification_type: VerificationType::Unverified,
+                verified_at: None,
+                revoked_at: None,
+            },
         };
         env.as_contract(&id, || {
             // Set profile
@@ -886,35 +953,54 @@ mod tests {
 // Verification storage functions
 // ──────────────────────────────────────────────────────────────────────────────
 
-pub fn get_verification_status(env: &Env, address: &Address) -> Option<crate::types::VerificationStatus> {
+#[allow(dead_code)]
+pub fn get_verification_status(
+    env: &Env,
+    address: &Address,
+) -> Option<crate::types::VerificationStatus> {
     env.storage()
         .persistent()
         .get(&DataKey::VerificationStatus(address.clone()))
 }
 
-pub fn set_verification_status(env: &Env, address: &Address, status: &crate::types::VerificationStatus) {
+#[allow(dead_code)]
+pub fn set_verification_status(
+    env: &Env,
+    address: &Address,
+    status: &crate::types::VerificationStatus,
+) {
     env.storage()
         .persistent()
         .set(&DataKey::VerificationStatus(address.clone()), status);
     bump_profile_ttl(env, address);
 }
 
+#[allow(dead_code)]
 pub fn remove_verification_status(env: &Env, address: &Address) {
     env.storage()
         .persistent()
         .remove(&DataKey::VerificationStatus(address.clone()));
 }
 
-pub fn get_verification_request(env: &Env, address: &Address) -> Option<crate::types::VerificationType> {
+#[allow(dead_code)]
+pub fn get_verification_request(
+    env: &Env,
+    address: &Address,
+) -> Option<crate::types::VerificationType> {
     env.storage()
         .persistent()
         .get(&DataKey::VerificationRequest(address.clone()))
 }
 
-pub fn set_verification_request(env: &Env, address: &Address, verification_type: &crate::types::VerificationType) {
-    env.storage()
-        .persistent()
-        .set(&DataKey::VerificationRequest(address.clone()), verification_type);
+pub fn set_verification_request(
+    env: &Env,
+    address: &Address,
+    verification_type: &crate::types::VerificationType,
+) {
+    env.storage().persistent().set(
+        &DataKey::VerificationRequest(address.clone()),
+        verification_type,
+    );
     bump_profile_ttl(env, address);
 }
 
@@ -922,4 +1008,95 @@ pub fn remove_verification_request(env: &Env, address: &Address) {
     env.storage()
         .persistent()
         .remove(&DataKey::VerificationRequest(address.clone()));
+}
+
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Donation page storage functions
+// ──────────────────────────────────────────────────────────────────────────────
+
+pub fn get_donation_page(env: &Env, creator: &Address) -> Option<crate::types::DonationPageConfig> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::DonationPage(creator.clone()))
+}
+
+pub fn set_donation_page(
+    env: &Env,
+    creator: &Address,
+    config: &crate::types::DonationPageConfig,
+) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::DonationPage(creator.clone()), config);
+    bump_profile_ttl(env, creator);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Stats storage functions
+// ──────────────────────────────────────────────────────────────────────────────
+
+pub fn get_stats_window_start(env: &Env) -> u64 {
+    env.storage()
+        .instance()
+        .get(&DataKey::StatsWindowStart)
+        .unwrap_or(0)
+}
+
+pub fn set_stats_window_start(env: &Env, timestamp: u64) {
+    env.storage()
+        .instance()
+        .set(&DataKey::StatsWindowStart, &timestamp);
+}
+
+pub fn get_tips_last_24h(env: &Env) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::TipsLast24h)
+        .unwrap_or(0)
+}
+
+pub fn set_tips_last_24h(env: &Env, count: u32) {
+    env.storage()
+        .instance()
+        .set(&DataKey::TipsLast24h, &count);
+}
+
+pub fn get_volume_last_24h(env: &Env) -> i128 {
+    env.storage()
+        .instance()
+        .get(&DataKey::VolumeLast24h)
+        .unwrap_or(0)
+}
+
+pub fn set_volume_last_24h(env: &Env, volume: i128) {
+    env.storage()
+        .instance()
+        .set(&DataKey::VolumeLast24h, &volume);
+}
+
+pub fn get_active_creators_30d(env: &Env) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::ActiveCreators30d)
+        .unwrap_or(0)
+}
+
+pub fn set_active_creators_30d(env: &Env, count: u32) {
+    env.storage()
+        .instance()
+        .set(&DataKey::ActiveCreators30d, &count);
+}
+
+pub fn get_creator_last_active(env: &Env, creator: &Address) -> u64 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::CreatorLastActive(creator.clone()))
+        .unwrap_or(0)
+}
+
+pub fn set_creator_last_active(env: &Env, creator: &Address, timestamp: u64) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::CreatorLastActive(creator.clone()), &timestamp);
 }
