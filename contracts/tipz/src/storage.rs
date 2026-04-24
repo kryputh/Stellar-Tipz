@@ -82,8 +82,12 @@ pub enum DataKey {
     CreatorTipCount(Address),
     /// Reverse index: (creator, local_index) → global tip ID
     CreatorTip(Address, u32),
-    /// Pending admin address (proposed but not yet accepted)
-    PendingAdmin,
+    /// Pending time-locked admin rotation (`None` when idle)
+    PendingAdminChange,
+    /// Monotonic id for admin change history entries
+    AdminChangeHistoryNextId,
+    /// Admin change history item by sequential id
+    AdminChangeHistoryItem(u32),
     /// Verification status by creator address
     VerificationStatus(Address),
     /// Pending verification request by creator address
@@ -130,6 +134,8 @@ pub enum DataKey {
     ActiveCreators30d,
     /// Creator last active timestamp
     CreatorLastActive(Address),
+    /// When set, profile is deactivated (unix timestamp); absent means active
+    ProfileDeactivatedAt(Address),
 }
 
 /// Extend the contract instance TTL when a write transaction starts.
@@ -237,19 +243,87 @@ pub fn set_admin(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
 }
 
-/// Returns the pending (proposed) admin address, or `None` if no proposal is active.
-pub fn get_pending_admin(env: &Env) -> Option<Address> {
-    env.storage().instance().get(&DataKey::PendingAdmin)
+/// Pending admin change proposal, if any.
+pub fn get_pending_admin_change(env: &Env) -> Option<crate::types::AdminChangeProposal> {
+    env.storage()
+        .instance()
+        .get(&DataKey::PendingAdminChange)
 }
 
-/// Stores a pending admin proposal.
-pub fn set_pending_admin(env: &Env, admin: &Address) {
-    env.storage().instance().set(&DataKey::PendingAdmin, admin);
+pub fn set_pending_admin_change(env: &Env, proposal: &crate::types::AdminChangeProposal) {
+    env.storage()
+        .instance()
+        .set(&DataKey::PendingAdminChange, proposal);
 }
 
-/// Removes any pending admin proposal.
-pub fn remove_pending_admin(env: &Env) {
-    env.storage().instance().remove(&DataKey::PendingAdmin);
+pub fn remove_pending_admin_change(env: &Env) {
+    env.storage().instance().remove(&DataKey::PendingAdminChange);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Profile deactivation (separate from `Profile` blob for upgrade-safe reads)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// `true` when the creator profile is temporarily deactivated.
+pub fn is_profile_deactivated(env: &Env, address: &Address) -> bool {
+    env.storage()
+        .persistent()
+        .has(&DataKey::ProfileDeactivatedAt(address.clone()))
+}
+
+/// Ledger timestamp when the profile was deactivated, if deactivated.
+pub fn get_profile_deactivated_at(env: &Env, address: &Address) -> Option<u64> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::ProfileDeactivatedAt(address.clone()))
+}
+
+pub fn set_profile_deactivated_at(env: &Env, address: &Address, at: u64) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::ProfileDeactivatedAt(address.clone()), &at);
+}
+
+pub fn clear_profile_deactivation(env: &Env, address: &Address) {
+    let key = DataKey::ProfileDeactivatedAt(address.clone());
+    if env.storage().persistent().has(&key) {
+        env.storage().persistent().remove(&key);
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Admin change history
+// ──────────────────────────────────────────────────────────────────────────────
+
+pub fn get_admin_change_history_next_id(env: &Env) -> u32 {
+    env.storage()
+        .instance()
+        .get(&DataKey::AdminChangeHistoryNextId)
+        .unwrap_or(0)
+}
+
+fn set_admin_change_history_next_id(env: &Env, id: u32) {
+    env.storage()
+        .instance()
+        .set(&DataKey::AdminChangeHistoryNextId, &id);
+}
+
+/// Append a completed admin change to history (sequential ids, newest has highest id).
+pub fn append_admin_change_history(env: &Env, entry: &crate::types::AdminChangeHistoryEntry) {
+    let id = get_admin_change_history_next_id(env);
+    env.storage()
+        .instance()
+        .set(&DataKey::AdminChangeHistoryItem(id), entry);
+    set_admin_change_history_next_id(env, id.saturating_add(1));
+}
+
+pub fn get_admin_change_history_entry(
+    env: &Env,
+    id: u32,
+) -> Option<crate::types::AdminChangeHistoryEntry> {
+    env.storage()
+        .instance()
+        .get(&DataKey::AdminChangeHistoryItem(id))
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1010,7 +1084,6 @@ pub fn remove_verification_request(env: &Env, address: &Address) {
         .remove(&DataKey::VerificationRequest(address.clone()));
 }
 
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Donation page storage functions
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1021,11 +1094,7 @@ pub fn get_donation_page(env: &Env, creator: &Address) -> Option<crate::types::D
         .get(&DataKey::DonationPage(creator.clone()))
 }
 
-pub fn set_donation_page(
-    env: &Env,
-    creator: &Address,
-    config: &crate::types::DonationPageConfig,
-) {
+pub fn set_donation_page(env: &Env, creator: &Address, config: &crate::types::DonationPageConfig) {
     env.storage()
         .persistent()
         .set(&DataKey::DonationPage(creator.clone()), config);
@@ -1057,9 +1126,7 @@ pub fn get_tips_last_24h(env: &Env) -> u32 {
 }
 
 pub fn set_tips_last_24h(env: &Env, count: u32) {
-    env.storage()
-        .instance()
-        .set(&DataKey::TipsLast24h, &count);
+    env.storage().instance().set(&DataKey::TipsLast24h, &count);
 }
 
 pub fn get_volume_last_24h(env: &Env) -> i128 {
@@ -1088,6 +1155,7 @@ pub fn set_active_creators_30d(env: &Env, count: u32) {
         .set(&DataKey::ActiveCreators30d, &count);
 }
 
+#[allow(dead_code)]
 pub fn get_creator_last_active(env: &Env, creator: &Address) -> u64 {
     env.storage()
         .persistent()
